@@ -3,17 +3,25 @@ import turtle
 import os
 import random
 import winsound
+import platform
 
-#Setting up screen
+if platform.system() == "Windows":
+    try:
+        import winsound
+    except:
+        print("Winsound module unavailable.")
+
+# Setting up screen
 wn = turtle.Screen()
 wn.bgcolor("black")
 wn.title("Space Invaders")
 wn.bgpic("space_invaders_background.gif")
+wn.tracer(0)
 
-turtle.register_shape("invader.gif")
-turtle.register_shape("player.gif")
+wn.register_shape("invader.gif")
+wn.register_shape("player.gif")
 
-#Drawing screen border
+# Drawing screen border
 border_pen = turtle.Turtle()
 border_pen.speed(0)
 border_pen.color("white")
@@ -32,11 +40,11 @@ score_pen.speed(0)
 score_pen.color("white")
 score_pen.penup()
 score_pen.setposition(-290,280)
-scorestring = "Score: %s" %score
+scorestring = "Score: {}".format(score)
 score_pen.write(scorestring, False, align="left", font=("Arial", 14, "normal"))
 score_pen.hideturtle()
 
-#Create player
+# Create player
 player = turtle.Turtle()
 player.color("blue")
 player.shape("player.gif")
@@ -44,32 +52,38 @@ player.penup()
 player.speed(0)
 player.setposition(0, -250)
 player.setheading(90)
+player.speed = 0
 
-playerspeed = 15
-
-#Choose number of enemies
-number_of_enemies = 5
-#Create empty enemy list
+# Choose number of enemies
+number_of_enemies = 30
+# Create empty enemy list
 enemies = []
-#Add enemies to list
+# Add enemies to list
 for i in range(number_of_enemies):
-    # Create invaders
+    #  Create invaders
     enemies.append(turtle.Turtle())
 
+enemy_start_x = -220
+enemy_start_y = 200
+enemy_number = 0
 
 for enemy in enemies:
-    #enemy = turtle.Turtle()
+    # enemy = turtle.Turtle()
     enemy.color("red")
     enemy.shape("invader.gif")
     enemy.penup()
     enemy.speed(0)
-    x = random.randint(-200, 200)
-    y = random.randint(100, 250)
+    x = enemy_start_x + (50 * enemy_number)
+    y = enemy_start_y
     enemy.setposition(x, y)
+    enemy_number += 1
+    if enemy_number == 10:
+        enemy_start_y -= 50
+        enemy_number = 0
 
-enemyspeed = 2
+enemyspeed = 0.1
 
-#Create player bullet
+# Create player bullet
 bullet = turtle.Turtle()
 bullet.color("yellow")
 bullet.shape("triangle")
@@ -79,23 +93,24 @@ bullet.setheading(90)
 bullet.shapesize(0.5,0.5)
 bullet.hideturtle()
 
-bulletspeed = 20
+bulletspeed = 1
 
-#Define bullet state
+# Define bullet state
 bulletstate = "ready"
 
 
-#Move player horizontally
+# Move player horizontally
 def move_left():
-    x = player.xcor()
-    x -= playerspeed
-    if x < -280:
-        x = -280
-    player.setx(x)
+    player.speed = -1
 
 def move_right():
+    player.speed = 1
+
+def move_player():
     x = player.xcor()
-    x += playerspeed
+    x += player.speed
+    if x < -280:
+        x = -280
     if x > 280:
         x = 280
     player.setx(x)
@@ -103,7 +118,7 @@ def move_right():
 def fire_bullet():
     global bulletstate
     if bulletstate == "ready":
-        winsound.PlaySound("Space Invaders_laser.wav", winsound.SND_ASYNC)
+        play_sound("Space Invaders_laser.wav", winsound.SND_ASYNC)
         bulletstate = "fire"
         x = player.xcor()
         y = player.ycor() + 10
@@ -117,24 +132,41 @@ def isCollision(t1, t2):
         return True
     else:
         return False
+def play_sound(sound_file, time = 0):
+    # Windows
+    if platform.system() == "Windows":
+        winsound.PlaySound(sound_file, winsound.SND_ASYNC)
+    # Linux
+    elif platform.system() == "Linux":
+        os.system("aplay -q {}&".format(sound_file))
+    # Mac
+    else:
+        os.system("afplay -q {}&".format(sound_file))
+
+   # if time > 0:
+    #    turtle.ontimer(lambda: play_sound(sound_file, time), t=int(time * 1000))
 
 
-#Create keyboard bindings
-turtle.listen()
-turtle.onkey(move_left, "Left")
-turtle.onkey(move_right, "Right")
-turtle.onkey(fire_bullet, "space")
+# Create keyboard bindings
+wn.listen()
+wn.onkeypress(move_left, "Left")
+wn.onkeypress(move_right, "Right")
+wn.onkeypress(fire_bullet, "space")
 
-#Main game loop
+# play_sound("track.mp3", 115)
+
+# Main game loop
 while True:
+    wn.update()
+    move_player()
 
     for enemy in enemies:
-        #Enemy movement
+        # Enemy movement
         x = enemy.xcor()
         x += enemyspeed
         enemy.setx(x)
 
-        #Reverse enemy
+        # Reverse enemy
         if enemy.xcor() > 280:
             for e in enemies:
                 y = e.ycor()
@@ -148,18 +180,17 @@ while True:
                 y -= 40
                 e.sety(y)
             enemyspeed *= -1
-            # CHECK COLLISION
+            #  CHECK COLLISION
         if isCollision(bullet, enemy):
-            winsound.PlaySound("Space Invaders_explosion.wav", winsound.SND_ASYNC)
+            play_sound("Space Invaders_explosion.wav", winsound.SND_ASYNC)
             bullet.hideturtle()
             bulletstate = "ready"
             bullet.setposition(0, -400)
-            x = random.randint(-200, 200)
-            y = random.randint(100, 250)
-            enemy.setposition(x, y)
-            #Update score
+
+            enemy.setposition(0, 5000)
+            # Update score
             score += 10
-            scorestring = "Score: %s" %score
+            scorestring = "Score: {}".format(score)
             score_pen.clear()
             score_pen.write(scorestring, False, align="left", font=("Arial", 14, "normal"))
         if isCollision(player, enemy):
@@ -168,7 +199,7 @@ while True:
             print("Game Over")
             break
 
-    #Bullet movement
+    # Bullet movement
     if bulletstate == "fire":
         y = bullet.ycor()
         y += bulletspeed
@@ -177,5 +208,3 @@ while True:
     if bullet.ycor() > 275:
         bullet.hideturtle()
         bulletstate = "ready"
-
-delay = input("Enter")
